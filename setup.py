@@ -13,7 +13,7 @@ DESCRIPTION = 'MultiAgent gym environment for reinforcement learning'
 LONG_DESCRIPTION = (HERE / "README.md").read_text()
 LONG_DESC_TYPE = "text/markdown"
 
-INSTALL_REQUIRES = ['gym', 'pygame', 'pymunk', "numpy", "pillow", "tankwar"]
+INSTALL_REQUIRES = ['gym', 'pygame', 'pyglet', 'pymunk', "numpy", "pillow", "tankwar"]
 
 setup(name=PACKAGE_NAME,
       version=VERSION,
