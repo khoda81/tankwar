@@ -1,8 +1,8 @@
 gym>=0.20.0
 pygame>=2.0.1
-pymunk>=6.2.0
 numpy>=1.21.2
 pillow>=8.3.2
 tankwar>=0.0.0
 pyglet>=1.5.21
 setuptools>=58.0.4
+pymunk>=6.2.0
