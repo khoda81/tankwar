@@ -6,7 +6,7 @@ from tankwar.envs import TankWarEnv
 
 
 def main():
-    n = 6
+    n = 3
     env = TankWarEnv(n)
 
     agents = [HumanTankAgent(env)] + [RandomAgent(env) for _ in range(n - 1)]
@@ -22,6 +22,7 @@ def main():
     while not done:
         if rendering:
             env.render()
+            arr = env.render("rgb_array")
 
         actions = [
             agent.act(observation, reward, done)

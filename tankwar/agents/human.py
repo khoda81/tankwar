@@ -21,11 +21,11 @@ class HumanTankAgent:
                 elif event.key == pygame.K_s:
                     self.forward_acceleration = -1
                 elif event.key == pygame.K_d:
-                    self.angular_acceleration = 1
-                elif event.key == pygame.K_a:
                     self.angular_acceleration = -1
+                elif event.key == pygame.K_a:
+                    self.angular_acceleration = 1
                 elif event.key == pygame.K_SPACE:
-                    self.shooting = True
+                    self.shooting = not self.shooting
                 elif event.key == pygame.K_q:
                     self.turret = 1
                 elif event.key == pygame.K_e:
@@ -44,9 +44,4 @@ class HumanTankAgent:
                 if event.button == pygame.BUTTON_LEFT:
                     self.shooting = False
 
-        forward = Vec2d(1, 1)
-        rotate = Vec2d(1, -1)
-
-        tracks = forward * self.forward_acceleration + rotate * self.angular_acceleration
-
-        return (*tracks, self.turret), self.shooting
+        return (self.forward_acceleration, self.angular_acceleration, self.turret), self.shooting

@@ -20,6 +20,8 @@ class Tank:
 
         self.turret_angle = 0.
         self.cooldown = 0
+        self.health = 10
+        self.reward = 0
 
         rw, rh = w / 2, h / 2
         points = [(rw, rh), (rw, -rh), (-rw, -rh), (-rw, rh)]
@@ -30,8 +32,10 @@ class Tank:
         self.body.position = Vec2d(x, y)
 
         shape = pymunk.Poly(self.body, points)
+        shape.collision_type = 3
         shape.friction = self.friction
         shape.elasticity = .1
+        shape.tank = self
 
         self.control = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
         self.control.position = self.body.position
@@ -43,7 +47,7 @@ class Tank:
         gear = pymunk.GearJoint(self.body, self.control, 0.0, 1.0)
         gear.error_bias = 0  # attempt to fully correct the joint each step
         gear.max_bias = 20  # but limit it's angular correction rate
-        gear.max_force = 30000  # emulate angular friction
+        gear.max_force = 60000  # emulate angular friction
 
         space.add(self.body, shape, self.control, pivot, gear)
 
@@ -53,7 +57,7 @@ class Bullet:
     collision_group = 1
     starting_impulse = 100
     mass = .1
-    radius = 1
+    radius = .7
 
     def __init__(self, space: Space, owner: Tank):
         self.owner = owner
@@ -67,6 +71,6 @@ class Bullet:
 
         self.shape = Circle(self.body, radius=self.radius)
         self.shape.collision_type = self.collision_group
-        self.shape.obj = self
+        self.shape.bullet = self
 
         space.add(self.body, self.shape)

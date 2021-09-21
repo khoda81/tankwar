@@ -28,30 +28,33 @@ class TankWarEnv(gym.Env):
     bullets: list[Bullet]
     window = None
     space = None
-    metadata = {"render.modes": []}
+    metadata = {"render.modes": ['human', 'rgb_array']}
+
+    tank_acceleration = 100
+    bullet_cool_down = 50
+    turret_speed = 30
+    window_h = 100
+    frame_rate = 60
 
     action_space = gym.spaces.Tuple((
         gym.spaces.Box(-1, 1, [3]),
         gym.spaces.Discrete(2)
     ))
 
-    def __init__(self, n, shape=(200, 200)):
+    observation_space = gym.spaces.Box(-np.inf, np.inf, [5])
+
+    def __init__(self, n, shape=(150, 150)):
         self.bullets = []
         self.done = False
         self.n = n
         self.tanks = []
         self.shape_batch = None
-        self._total_frames = 0
 
         self.shape = shape
-        self.step_size = 1e-3
+
         self.step_size_change = 0
+        self.step_size = 1e-3
 
-        self.tank_acceleration = 100
-        self.bullet_cool_down = 100
-        self.turret_speed = 30
-
-        self.window_h = 400
         w, h = shape
         self.window_scale = self.window_h / h
         self.window_w = self.window_h * w // h
@@ -60,6 +63,7 @@ class TankWarEnv(gym.Env):
         self.display = True
         self.events = []
 
+        self.frame_done = False
         self.frame_counter = 0
         self.step_counter = 0
         self.last_print = int(time.time())
@@ -74,13 +78,15 @@ class TankWarEnv(gym.Env):
             self.step_size = 1e-5 if self.step_size < 1e-5 else 1e-2 if self.step_size > 1e-2 else self.step_size
             print(f"step_size={self.step_size}")
 
+        rewards = np.zeros(self.n)
+        observations = np.zeros((self.n, 5))
         for i, action, tank in zip(range(self.n), actions, self.tanks):
-            (left, right, turret), shooting = action
-            right = -1 if right < -1 else 1 if right > 1 else right
-            left = -1 if left < -1 else 1 if left > 1 else left
+            (forward, torque, turret), shooting = action
+            torque = -1 if torque < -1 else 1 if torque > 1 else torque
+            forward = -1 if forward < -1 else 1 if forward > 1 else forward
 
-            tank.control.velocity = Vec2d(0, self.tank_acceleration * (left + right)).rotated(tank.body.angle)
-            tank.control.angle = (right - left) + tank.body.angle
+            tank.control.velocity = Vec2d(0, self.tank_acceleration * forward).rotated(tank.body.angle)
+            tank.control.angle = torque + tank.body.angle
 
             tank.turret_angle += self.step_size * turret * self.turret_speed
             tank.cooldown -= 1
@@ -92,7 +98,15 @@ class TankWarEnv(gym.Env):
                                        bullet.shape.radius * self.window_scale, color=(0, 0, 0),
                                        batch=self.shape_batch)
 
+            rewards[i] = tank.reward
+            tank.reward = 0
+
         self.space.step(self.step_size)
+
+        for i, tank in enumerate(self.tanks):
+            velocity = tank.body.velocity.rotated(tank.body.angle)
+            angular_velocity = tank.body.angular_velocity
+            observations[i] = *velocity, angular_velocity, tank.health, tank.cooldown
 
         t = time.time()
 
@@ -102,28 +116,36 @@ class TankWarEnv(gym.Env):
             self.step_counter = 0
             self.last_print = int(t)
 
-        return [None] * self.n, [0] * self.n, self.done, {"events": self.events}
+        self.frame_done = False
+
+        return observations, rewards, self.done, {"events": self.events}
 
     def init_window(self):
         self.window = pygame.display.set_mode(self.window_size, HWSURFACE | OPENGL | DOUBLEBUF)
 
     def render(self, mode="human"):
-        self.frame_counter += 1
-
-        self.process_window_events()
-        self.draw()
+        if not self.frame_done:
+            self.draw()
+            self.process_window_events()
 
         # display frame
-        if self.display:
+        if mode == "human" and self.display:
             pygame.display.flip()
 
             # tick clock and update fps in title
-            self.clock.tick(60 if self.limited and self.display else 0)
+            self.clock.tick(self.frame_rate if self.limited and self.display else 0)
             fps = self.clock.get_fps()
 
             pygame.display.set_caption(f"{fps:.1f} fps")
+        elif mode == "rgb_array":
+            frame_class = GLubyte * (3 * self.window_w * self.window_h)
+            buffer = frame_class()
+            glReadPixels(0, 0, self.window_w, self.window_h, GL_RGB, GL_UNSIGNED_BYTE, buffer)
+            return np.array(buffer, dtype=np.ubyte).reshape((self.window_w, self.window_h, 3))
 
     def draw(self):
+        self.frame_counter += 1
+
         # clear screen
         glClearColor(0.9140625, 0.7109375, 0.4609375, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -145,6 +167,7 @@ class TankWarEnv(gym.Env):
             bullet.circle.position = bullet.body.position * self.window_scale
 
         self.shape_batch.draw()
+        self.frame_done = True
 
     def blur_window(self):
         frame_class = GLubyte * (3 * self.window_w * self.window_h)
@@ -152,7 +175,7 @@ class TankWarEnv(gym.Env):
         glReadPixels(0, 0, self.window_w, self.window_h, GL_RGB, GL_UNSIGNED_BYTE, buffer)
 
         shot = Image.frombytes(mode="RGB", size=self.window_size, data=buffer)
-        blurred = shot.filter(ImageFilter.GaussianBlur(10))
+        blurred = shot.filter(ImageFilter.GaussianBlur(self.window_h // 50))
 
         glColor3f(1, 1, 1)
         blurred_pyglet = pyglet.image.ImageData(*self.window_size, "RGB", blurred.tobytes())
@@ -194,14 +217,14 @@ class TankWarEnv(gym.Env):
         tank = Tank(self.space, x, y, 10, 14)
         tank.id = i
         size = Vec2d(tank.width * self.window_scale, tank.height * self.window_scale)
-        tank.rect = Rectangle(*tank.body.position, *size, tank.color, batch=self.shape_batch)
+        tank.rect = Rectangle(0, 0, *size, tank.color, batch=self.shape_batch)
 
         tank.rect.anchor_position = size / 2
         tank.rect.rotation = -tank.body.angle / np.pi * 180
 
-        turret_size = Vec2d(2, tank.turret_length) * self.window_scale
-        tank.turret = Rectangle(*tank.body.position, *turret_size, tank.turret_color, batch=self.shape_batch)
-        tank.turret.anchor_x = self.window_scale
+        turret_size = Vec2d(Bullet.radius * 2, tank.turret_length) * self.window_scale
+        tank.turret = Rectangle(0, 0, *turret_size, tank.turret_color, batch=self.shape_batch)
+        tank.turret.anchor_x = turret_size.x / 2
         tank.turret.rotation = -(tank.body.angle + tank.turret_angle) / np.pi * 180
 
         return tank
@@ -223,6 +246,7 @@ class TankWarEnv(gym.Env):
 
         for i in range(4):
             shape = pymunk.Segment(self.space.static_body, points[-i], points[-i - 1], 10)
+            shape.collision_type = 2
             shape.friction = .5
             self.space.add(shape)
 
@@ -237,14 +261,27 @@ class TankWarEnv(gym.Env):
         for i in range(1000):
             self.space.step(1e-2)
 
-        return [None] * self.n
+        observations = np.zeros((self.n, 5))
+        for i, tank in enumerate(self.tanks):
+            velocity = tank.body.velocity.rotated(tank.body.angle)
+            angular_velocity = tank.body.angular_velocity
+            observations[i] = *velocity, angular_velocity, tank.health, tank.cooldown
+
+        return observations
 
     def handle_bullet_collision(self, arbiter, space, data):
-        bullet, obj = arbiter.shapes
-        if bullet.obj in self.bullets:
-            self.bullets.remove(bullet.obj)
-            del bullet.obj.circle
+        bullet_shape, shape = arbiter.shapes
+        if bullet_shape.bullet in self.bullets:
+            bullet_shape.bullet.owner.reward += 1  # give one reward to the owner of the bullet
+            if shape.collision_type == 3:
+                shape.tank.health -= 1
+                shape.tank.reward -= 1
+            del bullet_shape.bullet.circle
+            for contact in arbiter.contact_point_set.points:
+                impulse = contact.point_a - contact.point_b
+                shape.body.apply_impulse_at_world_point(impulse.scale_to_length(1) * 500, contact.point_b)
+            self.bullets.remove(bullet_shape.bullet)
 
-        space.remove(bullet, bullet.body)
+        space.remove(bullet_shape, bullet_shape.body)
 
         return True
