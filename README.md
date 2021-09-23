@@ -1,10 +1,14 @@
-## Installation
+# Installation
 ```
 git clone https://github.com/khoda81/tankwar.git
 cd tankwar
 pip install -e
 ```
-## Usage
+## or
+```shell
+pip install git+https://github.com/khoda81/tankwar.git
+```
+# Usage
 ```python
 import pygame
 
@@ -77,7 +81,7 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-## Keyboard
+# Keyboard
   - **Environment**:
     - <kbd>Esc</kbd> : set `env.done` to `True` (end episode on next step)  
     - <kbd>F</kbd> : toggle limited frame rate  
