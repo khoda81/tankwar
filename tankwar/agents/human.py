@@ -1,6 +1,4 @@
-import numpy as np
 import pygame
-from pymunk import Vec2d
 
 from tankwar.envs import TankWarEnv
 

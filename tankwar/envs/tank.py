@@ -5,6 +5,7 @@ from pymunk import Body, Space, Circle, Vec2d
 
 
 class Tank:
+    collision_group = 3
     rect: pyglet.shapes.Rectangle
     turret: pyglet.shapes.Rectangle
     id: int = None
@@ -31,13 +32,14 @@ class Tank:
         self.body.angle = np.random.random() * np.pi * 2
         self.body.position = Vec2d(x, y)
 
-        shape = pymunk.Poly(self.body, points)
-        shape.collision_type = 3
-        shape.friction = self.friction
-        shape.elasticity = .1
-        shape.tank = self
+        self.shape = pymunk.Poly(self.body, points)
+        self.shape.collision_type = 3
+        self.shape.friction = self.friction
+        self.shape.elasticity = .1
+        self.shape.tank = self
 
         self.control = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
+        self.control.angle = self.body.angle
         self.control.position = self.body.position
 
         pivot = pymunk.PivotJoint(self.body, self.control, (0, 0), (0, 0))
@@ -49,7 +51,7 @@ class Tank:
         gear.max_bias = 20  # but limit it's angular correction rate
         gear.max_force = 60000  # emulate angular friction
 
-        space.add(self.body, shape, self.control, pivot, gear)
+        space.add(self.body, self.shape, self.control, pivot, gear)
 
 
 class Bullet:
