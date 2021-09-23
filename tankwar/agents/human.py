@@ -3,7 +3,7 @@ import pygame
 from tankwar.envs import TankWarEnv
 
 
-class HumanTankAgent:
+class HumanAgent:
     def __init__(self, env: TankWarEnv):
         self.env = env
         self.forward_acceleration = 0

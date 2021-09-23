@@ -1,7 +1,6 @@
 import pygame
 
-from tankwar.agents.human import HumanTankAgent
-from tankwar.agents.random_agent import RandomAgent
+from tankwar.agents import HumanAgent, RandomAgent
 from tankwar.envs import TankWarEnv
 
 
@@ -18,7 +17,7 @@ def main():
 
     # create agents
     agents = (
-            [HumanTankAgent(env)] * human_agent +
+            [HumanAgent(env)] * human_agent +
             [RandomAgent(env) for _ in range(random_agents)])
 
     # initialize a window with the height of 200
