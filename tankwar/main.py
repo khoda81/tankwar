@@ -4,6 +4,7 @@ from tankwar.agents.human import HumanTankAgent
 from tankwar.agents.random_agent import RandomAgent
 from tankwar.envs import TankWarEnv
 
+
 MAX_EPISODE_STEPS = 5000
 
 
