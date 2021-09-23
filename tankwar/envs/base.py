@@ -157,10 +157,10 @@ class TankWarEnv(gym.Env):
 
         # draw tanks
         for tank in self.tanks:
-            tank.rect.position = tank.body.position * self.window_scale
+            tank.rect._x, tank.rect._y = tank.body.position * self.window_scale
             tank.rect.rotation = -tank.body.angle / np.pi * 180
 
-            tank.turret.position = tank.body.position * self.window_scale
+            tank.turret._x, tank.turret._y = tank.body.position * self.window_scale
             tank.turret.rotation = -(tank.body.angle + tank.turret_angle) / np.pi * 180
 
         # draw bullets:

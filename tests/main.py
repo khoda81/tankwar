@@ -12,18 +12,9 @@ from tankwar.envs import TankWarEnv
 MAX_EPISODE_STEPS = 5000
 
 
-def show_pt_rgb_arr(tensor):
-    np_camera = np.zeros(tensor.shape[1:] + (3,), dtype=np.ubyte)
-    np_camera[..., 0] = tensor[0, ...] * 255
-    np_camera[..., 1] = tensor[1, ...] * 255
-    np_camera[..., 2] = tensor[2, ...] * 255
-    p = Image.fromarray(np_camera)
-    p.show()
-
-
 def main():
     random_agents = 2
-    human_agent = True  # whether or not a human is currently playing
+    human_agent = False  # whether or not a human is currently playing
     display_to_human = human_agent
 
     # create environment
