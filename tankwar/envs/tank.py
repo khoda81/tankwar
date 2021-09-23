@@ -59,7 +59,7 @@ class Bullet:
     collision_group = 1
     starting_impulse = 100
     mass = .1
-    radius = .7
+    radius = 1
 
     def __init__(self, space: Space, owner: Tank):
         self.owner = owner

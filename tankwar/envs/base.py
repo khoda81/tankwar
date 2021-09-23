@@ -1,6 +1,8 @@
 import time
+from ctypes import c_uint8
 
 import gym
+import numpy
 import numpy as np
 import pygame
 import pyglet
@@ -25,7 +27,7 @@ class TankWarEnv(gym.Env):
     space = None
     metadata = {"render.modes": ['human', 'rgb_array', 'rgb_array_torch']}
 
-    tank_acceleration = 100
+    tank_acceleration = 200
     bullet_cool_down = 50
     turret_speed = 30
     frame_rate = 60
@@ -120,7 +122,6 @@ class TankWarEnv(gym.Env):
     def render(self, mode="human"):
         if not self.frame_done:
             self.draw()
-            glReadPixels(0, 0, self.window_w, self.window_h, GL_RGB, GL_UNSIGNED_BYTE, self.buffer)
             self.process_window_events()
 
         # display frame
@@ -137,11 +138,11 @@ class TankWarEnv(gym.Env):
             if self.black_window:
                 self.blur_window()
 
-            if "rgb_array" in mode:
-                arr = np.array(self.buffer, dtype=np.ubyte).reshape((self.window_w, self.window_h, 3))
-                if mode == "rgb_array_torch":
-                    return torch.tensor(arr)
-                return arr
+            if mode == "rgb_array":
+                return np.array(self.buffer).reshape((self.window_h, self.window_w, 3))
+            if mode == "rgb_array_torch":
+                arr = numpy.array(self.buffer).reshape((self.window_h, self.window_w, 3))
+                return (torch.from_numpy(arr) / 255).permute(2, 0, 1)
 
     def draw(self):
         self.frame_counter += 1
@@ -167,14 +168,11 @@ class TankWarEnv(gym.Env):
             bullet.circle.position = bullet.body.position * self.window_scale
 
         self.shape_batch.draw()
+        glReadPixels(0, 0, self.window_w, self.window_h, GL_RGB, GL_UNSIGNED_BYTE, self.buffer)
         self.frame_done = True
 
     def blur_window(self, r=None):
-        frame_class = GLubyte * (3 * self.window_w * self.window_h)
-        buffer = frame_class()
-        glReadPixels(0, 0, self.window_w, self.window_h, GL_RGB, GL_UNSIGNED_BYTE, buffer)
-
-        shot = Image.frombytes(mode="RGB", size=self.window_size, data=buffer)
+        shot = Image.frombytes(mode="RGB", size=self.window_size, data=self.buffer)
         r = r or self.window_h / 150
         blurred = shot.filter(ImageFilter.GaussianBlur(r))
 
@@ -221,6 +219,7 @@ class TankWarEnv(gym.Env):
 
     def reset(self):
         self.space = pymunk.Space()  # crete a simulation space
+        self.space.sleep_time_threshold = 3e-2
         self.shape_batch = Batch()  # create a shape batch for rendering
         self.bullets = []
         h = self.space.add_wildcard_collision_handler(Bullet.collision_group)
