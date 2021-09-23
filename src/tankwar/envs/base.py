@@ -1,15 +1,13 @@
 import time
-from ctypes import c_uint8
 
 import gym
-import numpy
 import numpy as np
 import pygame
 import pyglet
 import pymunk
 import pymunk.pygame_util
 import pymunk.pyglet_util
-import torch
+
 from PIL import Image, ImageFilter
 from pygame.locals import *
 from pyglet.gl import *
@@ -25,7 +23,7 @@ class TankWarEnv(gym.Env):
     bullets: list[Bullet]
     window = None
     space = None
-    metadata = {"render.modes": ['human', 'rgb_array', 'rgb_array_torch']}
+    metadata = {"render.modes": ['human', 'rgb_array']}
 
     tank_acceleration = 200
     bullet_cool_down = 50
@@ -46,14 +44,14 @@ class TankWarEnv(gym.Env):
         self.step_size = 1e-3
 
         self.frame_done = False
-        self.frame_counter = 0
-        self.step_counter = 0
-        self.last_print = int(time.time())
+        self._frame_counter = 0
+        self._step_counter = 0
+        self._last_fps_print = int(time.time())
 
         self.clock = pygame.time.Clock()
 
-    def step(self, actions):
-        self.step_counter += 1
+    def step(self, actions, print_fps=False):
+        self._step_counter += 1
 
         rewards = [0] * self.n
         observations = []
@@ -89,11 +87,12 @@ class TankWarEnv(gym.Env):
 
         t = time.time()
 
-        if int(t) > self.last_print:
-            print(f"tps={self.step_counter} fps={self.frame_counter}")
-            self.frame_counter = 0
-            self.step_counter = 0
-            self.last_print = int(t)
+        if int(t) > self._last_fps_print:
+            if print_fps:
+                print(f"tps={self._step_counter} fps={self._frame_counter}")
+            self._frame_counter = 0
+            self._step_counter = 0
+            self._last_fps_print = int(t)
 
         self.frame_done = False
 
@@ -140,12 +139,9 @@ class TankWarEnv(gym.Env):
 
             if mode == "rgb_array":
                 return np.array(self.buffer).reshape((self.window_h, self.window_w, 3))
-            if mode == "rgb_array_torch":
-                arr = numpy.array(self.buffer).reshape((self.window_h, self.window_w, 3))
-                return (torch.from_numpy(arr) / 255).permute(2, 0, 1)
 
     def draw(self):
-        self.frame_counter += 1
+        self._frame_counter += 1
 
         # clear screen
         glClearColor(0.9140625, 0.7109375, 0.4609375, 1)

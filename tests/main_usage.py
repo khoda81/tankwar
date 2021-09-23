@@ -1,75 +1,3 @@
-# Installation
-```
-git clone https://github.com/khoda81/tankwar.git
-cd tankwar
-pip install -e
-```
-### or
-```shell
-pip install git+https://github.com/khoda81/tankwar.git
-```
-
-# Keyboard
-  - **Environment**:
-    - <kbd>Esc</kbd> : set `env.done` to `True` (end episode on next step)  
-    - <kbd>F</kbd> : toggle limited frame rate  
-    <br>
-  - **HumanAgent**:
-    - <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> : movement
-    - <kbd>Q</kbd> <kbd>E</kbd> : rotate turret  
-    - <kbd>Space</kbd> : toggle shooting  
-    - <kbd>Left Mouse Button</kbd> : start shooting when pressed and stop shooting   
-    <br>
-  - **Script**:
-    - <kbd>G</kbd> : toggle window update (disabling window update will blur window and increase performance)
-
-# Basic Usage
-
-```python
-from tankwar.agents import HumanAgent, RandomAgent
-from tankwar.envs import TankWarEnv
-
-
-def main():
-    random_agents = 2
-
-    # create environment
-    env = TankWarEnv(random_agents + 1, shape=(200, 200))
-    w, h = env.shape
-
-    # create agents
-    agents = [HumanAgent(env)] + [RandomAgent(env) for _ in range(random_agents)]
-
-    # initialize a window with the height of 200
-    # width is calculated based on env.shape
-    # limit frame rate to 60 if a human is playing
-    env.init_window(600, True)
-    done = False
-
-    # reset environment
-    observations = env.reset()
-
-    while True:
-        env.render("human")  # render to screen
-
-        actions = [
-            agent.act((None, None), 0, done)
-            for agent in agents
-        ]
-
-        observations, rewards, done, info = env.step(actions)
-
-        if done:
-            break
-
-
-if __name__ == "__main__":
-    main()
-```
-
-# Main Usage
-
-```python
 import time
 
 import pygame
@@ -116,7 +44,8 @@ def main():
 
         # convert frame to pytorch tensor with shape (3, height, width)
         # frames are cached and will be rendered once per step
-        frame_torch = env.render("rgb_array_torch")
+        frame = env.render("rgb_array")
+        frame_torch = (torch.from_numpy(frame) / 255).permute(2, 0, 1)
 
         # each frame will be down sampled to (w, h)
         if env.window_scale != 1:
@@ -156,4 +85,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
