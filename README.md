@@ -4,12 +4,24 @@ git clone https://github.com/khoda81/tankwar.git
 cd tankwar
 pip install -e
 ```
-
+### or
 ```shell
 pip install git+https://github.com/khoda81/tankwar.git
 ```
-# Usage
 
+# Keyboard
+  - **Environment**:
+    - <kbd>Esc</kbd> : set `env.done` to `True` (end episode on next step)  
+    - <kbd>F</kbd> : toggle limited frame rate  
+    <br>
+  - **HumanAgent**:
+    - <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> : movement  
+    - <kbd>Space</kbd> : toggle shooting  
+    - <kbd>Left Mouse Button</kbd> : start shooting when pressed and stop shooting
+  - **Script**:
+    - <kbd>G</kbd> : toggle window update (disabling window update will blur window and increase performance)
+
+# Usage
 ```python
 import pygame
 
@@ -81,12 +93,3 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-# Keyboard
-  - **Environment**:
-    - <kbd>Esc</kbd> : set `env.done` to `True` (end episode on next step)  
-    - <kbd>F</kbd> : toggle limited frame rate  
-    <br>
-  - **HumanAgent**:
-    - <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> : movement  
-    - <kbd>Space</kbd> : toggle shooting  
-    - <kbd>Left Mouse Button</kbd> : start shooting when pressed and stop shooting
