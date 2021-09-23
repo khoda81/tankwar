@@ -78,11 +78,10 @@ if __name__ == "__main__":
     main()
 ```
 ## Keyboard actions
+  - <kbd>Esc</kbd> : set `env.done` to `True` (ends episode)  
+  - <kbd>F</kbd> : toggle limited frame rate  
 
-<kbd>Esc</kbd> : set `env.done` to `True` (which makes episode to end and program to terminate)  
-<kbd>F</kbd> : toggle limited frame rate  
-
-**HumanAgent:**  
-<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> : movement  
-<kbd>Space</kbd> : toggle shooting  
-<kbd>Left Mouse Button</kbd> : start shooting when pressed and stop shooting
+**HumanAgent**:  
+  - <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> : movement  
+  - <kbd>Space</kbd> : toggle shooting  
+  - <kbd>Left Mouse Button</kbd> : start shooting when pressed and stop shooting
