@@ -1,5 +1,9 @@
 # Installation
 ```
+pip install tankwar-env
+```
+### or
+```
 git clone https://github.com/khoda81/tankwar.git
 cd tankwar
 pip install -e
