@@ -26,6 +26,8 @@ pip install git+https://github.com/khoda81/tankwar.git
 # Basic Usage
 
 ```python
+import pygame
+
 from tankwar.agents import HumanAgent, RandomAgent
 from tankwar.envs import TankWarEnv
 
@@ -35,7 +37,6 @@ def main():
 
     # create environment
     env = TankWarEnv(random_agents + 1, shape=(200, 200))
-    w, h = env.shape
 
     # create agents
     agents = [HumanAgent(env)] + [RandomAgent(env) for _ in range(random_agents)]
@@ -48,16 +49,32 @@ def main():
 
     # reset environment
     observations = env.reset()
+    display_to_human = True
 
     while True:
-        env.render("human")  # render to screen
+        if display_to_human:
+            env.render("human")  # render to screen
+        else:
+            # if render is not called window events are not processed either
+            # so, manually processing window events
+            env.process_window_events()
 
         actions = [
             agent.act((None, None), 0, done)
             for agent in agents
         ]
 
-        observations, rewards, done, info = env.step(actions)
+        observations, rewards, done, info = env.step(actions, print_fps=True)
+
+        # if g is pressed screen is toggled
+        # disabling screen will make rendering faster
+        # because copying frame to window takes time
+        for event in env.events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
+                display_to_human = not display_to_human
+
+                if not display_to_human:
+                    env.blur_window()
 
         if done:
             break
@@ -65,6 +82,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 ```
 
 # Main Usage
