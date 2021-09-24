@@ -13,21 +13,21 @@ def main():
     # create agents
     agents = [HumanAgent(env)] + [RandomAgent(env) for _ in range(random_agents)]
 
-    # initialize a window with the height of 200
+    # initialize a window with the height of 600
+    # and limit frame rate to 60
     # width is calculated based on env.shape
-    # limit frame rate to 60 if a human is playing
     env.init_window(600, True)
     done = False
 
     # reset environment
-    observations = env.reset()
+    env.reset()
     display_to_human = True
 
     while True:
         if display_to_human:
             env.render("human")  # render to screen
         else:
-            # if render is not called window events are not processed either
+            # if render is not called window events are not processed
             # so, manually processing window events
             env.process_window_events()
 

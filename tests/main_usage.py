@@ -25,9 +25,9 @@ def main():
             [HumanAgent(env)] * human_agent +
             [RandomAgent(env) for _ in range(random_agents)])
 
-    # initialize a window with the height of 200
-    # width is calculated based on env.shape
+    # initialize a window with the height of environment physics space
     # limit frame rate to 60 if a human is playing
+    # width is automatically calculated
     env.init_window(h, human_agent)
     padded_frame = torch.zeros(3, w + 200, h + 200)
 
@@ -47,7 +47,7 @@ def main():
         frame = env.render("rgb_array")
         frame_torch = (torch.from_numpy(frame) / 255).permute(2, 0, 1)
 
-        # each frame will be down sampled to (w, h)
+        # down sampled frame to (w, h) if necessary
         if env.window_scale != 1:
             frame_torch = interpolate(frame_torch.reshape(1, *frame_torch.shape), (h, w))[0]
         # with 100 pixels padding on each side:
