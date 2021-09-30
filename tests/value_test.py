@@ -1,8 +1,4 @@
-from tqdm import tqdm
-
-from agents.ai import AI
-from tankwar.agents import HumanAgent, RandomAgent
-from tankwar.envs import TankWarEnv
+from time import sleep
 
 import numpy as np
 import pygame
@@ -10,9 +6,13 @@ import torch
 from PIL import Image
 from torch.nn.functional import interpolate
 
-MAX_EPISODE_STEPS = 5000
+from agents.ai import AI
+from tankwar.agents import HumanAgent, RandomAgent
+from tankwar.envs import TankWarEnv
 
-RANDOM_AGENTS = 2
+MAX_EPISODE_STEPS = 100
+
+RANDOM_AGENTS = 1
 HUMAN_AGENT = True
 SPACE_SIZE = 200, 200
 CAMERA_SIZE = 200, 200
@@ -54,6 +54,7 @@ def render(env, padded_frame):
         x, y = tank.body.position.int_tuple
         wx, wy = x // CAMERA_SCALE, y // CAMERA_SCALE
         image_batch[i] = padded_frame[:, wy:wy + ih, wx:wx + iw]
+
     return image_batch
 
 
@@ -71,23 +72,36 @@ def process_events(env):
 
 
 def main():
+    ai = AI(cw // CAMERA_SCALE, ch // CAMERA_SCALE)
+    ai.load_state_dict(torch.load("ai.pt"))
+
     env = TankWarEnv(RANDOM_AGENTS + HUMAN_AGENT, shape=SPACE_SIZE)
 
-    agents = (
-            [HumanAgent(env)] * HUMAN_AGENT +
-            [RandomAgent(env) for _ in range(RANDOM_AGENTS)])
+    random_agents = [RandomAgent(env) for _ in range(RANDOM_AGENTS)]
+    agents = [HumanAgent(env)] * HUMAN_AGENT + random_agents
 
-    env.init_window(WINDOW_HEIGHT)
-    env.reset()
+    env.init_window(WINDOW_HEIGHT, HUMAN_AGENT)
+    padded_frame = torch.zeros(3, fh + ih, fw + iw)
+    rewards = [0] * env.n
 
-    for _ in tqdm(range(MAX_EPISODE_STEPS), unit="step"):
-        if window_render:
-            env.render("human")
+    while True:
+        ai.q_model.encoder.reset(env.n)
+        env.reset()
 
-        process_events(env)
+        while True:
+            image = render(env, padded_frame).unsqueeze(0)
+            process_events(env)
+            actions = [agent.act() for i, agent in enumerate(agents)]
+            reward = torch.tensor(rewards).reshape(1, -1, 1)
 
-        actions = [agent.act() for i, agent in enumerate(agents)]
-        observations, rewards, done, info = env.step(actions)
+            values = ai(image, torch.tensor(actions).unsqueeze(0), torch.zeros_like(reward), "predict").flatten()
+            # values = ai(image, torch.tensor(actions).unsqueeze(0), reward, "predict").flatten()
+            print("".join(f"{val:>5.1f}" for val in values))
+
+            observations, rewards, done, info = env.step(actions)
+
+            if done:
+                break
 
         if done:
             break

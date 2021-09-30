@@ -22,7 +22,7 @@ pip install git+https://github.com/khoda81/tankwar.git
     - <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> : movement
     - <kbd>Q</kbd> <kbd>E</kbd> : rotate turret  
     - <kbd>Space</kbd> : toggle shooting  
-    - <kbd>Left Mouse Button</kbd> : start shooting when pressed and stop shooting   
+    - <kbd>Left Mouse Button</kbd> : start shooting when pressed and stop shooting when released   
     <br>
   - **Script**:
     - <kbd>G</kbd> : toggle window update (disabling window update will blur window and increase performance)
@@ -107,7 +107,7 @@ MAX_EPISODE_STEPS = 5000
 
 def main():
     random_agents = 2
-    human_agent = True  # whether or not a human is currently playing
+    human_agent = False  # whether or not a human is currently playing
     display_to_human = human_agent
 
     # create environment
@@ -138,7 +138,8 @@ def main():
 
         # convert frame to pytorch tensor with shape (3, height, width)
         # frames are cached and will be rendered once per step
-        frame_torch = env.render("rgb_array_torch")
+        frame = env.render("rgb_array")
+        frame_torch = (torch.from_numpy(frame) / 255).permute(2, 0, 1)
 
         # each frame will be down sampled to (w, h)
         if env.window_scale != 1:
@@ -178,4 +179,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 ```

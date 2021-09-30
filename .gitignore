@@ -1,2 +1,9 @@
 /tests/main.prof
 /dist/
+/src/tankwar_env.egg-info/
+/tests/ai.pt
+/tests/models/
+/tests/MNIST_data/
+/tests/data/
+/tests/ai1.pt
+/tests/ai2.pt

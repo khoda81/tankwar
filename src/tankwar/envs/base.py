@@ -1,4 +1,5 @@
 import time
+from typing import List
 
 import gym
 import numpy as np
@@ -19,29 +20,25 @@ from tankwar.envs.tank import Tank, Bullet
 
 
 class TankWarEnv(gym.Env):
-    tanks: list[Tank]
-    bullets: list[Bullet]
+    tanks: List[Tank]
+    bullets: List[Bullet]
     window = None
     space = None
     metadata = {"render.modes": ['human', 'rgb_array']}
 
+    action_space = gym.spaces.Box(-1, 1, [4])
+    observation_space = gym.spaces.Box(-np.inf, np.inf, [5])
+
+    background_color = 0.9140625, 0.7109375, 0.4609375
     tank_acceleration = 200
-    bullet_cool_down = 50
+    bullet_cool_down = 1e-1
     turret_speed = 30
     frame_rate = 60
-
-    action_space = gym.spaces.Tuple((
-        gym.spaces.Box(-1, 1, [3]),
-        gym.spaces.Discrete(2)
-    ))
-
-    observation_space = gym.spaces.Box(-np.inf, np.inf, [5])
+    step_size = 1e-3
 
     def __init__(self, n, shape=(200, 200)):
         self.n = n
         self.shape = shape
-
-        self.step_size = 1e-3
 
         self.frame_done = False
         self._frame_counter = 0
@@ -56,7 +53,7 @@ class TankWarEnv(gym.Env):
         rewards = [0] * self.n
         observations = []
         for i, action, tank in zip(range(self.n), actions, self.tanks):
-            (forward, torque, turret), shooting = action
+            forward, torque, turret, shooting = action
             torque = -1 if torque < -1 else 1 if torque > 1 else torque
             forward = -1 if forward < -1 else 1 if forward > 1 else forward
             turret = -1 if turret < -1 else 1 if turret > 1 else turret
@@ -65,8 +62,8 @@ class TankWarEnv(gym.Env):
             tank.control.angle = torque + tank.body.angle
 
             tank.turret_angle += self.step_size * turret * self.turret_speed
-            tank.cooldown -= 1
-            if shooting and tank.cooldown <= 0:
+            tank.cooldown -= self.step_size
+            if tank.cooldown <= 0 < shooting:
                 tank.cooldown = self.bullet_cool_down
                 self.create_bullet(tank)
 
@@ -102,7 +99,7 @@ class TankWarEnv(gym.Env):
         bullet = Bullet(self.space, owner)
         self.bullets.append(bullet)
         bullet.circle = Circle(*(bullet.body.position * self.window_scale),
-                               bullet.shape.radius * self.window_scale, color=(0, 0, 0),
+                               bullet.shape.radius * self.window_scale, color=Bullet.color,
                                batch=self.shape_batch)
 
     def init_window(self, height=100, limited=False):
@@ -144,7 +141,7 @@ class TankWarEnv(gym.Env):
         self._frame_counter += 1
 
         # clear screen
-        glClearColor(0.9140625, 0.7109375, 0.4609375, 1)
+        glClearColor(*self.background_color, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         # position camera to look at the world origin.
@@ -264,14 +261,14 @@ class TankWarEnv(gym.Env):
         bullet_shape, shape = arbiter.shapes
         if bullet_shape.bullet in self.bullets:
             if shape.collision_type in [Bullet.collision_group, Tank.collision_group]:
-                bullet_shape.bullet.owner.reward += 1  # give one reward to the owner of the bullet
+                # bullet_shape.bullet.owner.reward += 1  # give one reward to the owner of the bullet
                 if shape.collision_type == Tank.collision_group:
                     shape.tank.health -= 1
                     shape.tank.reward -= 1
             del bullet_shape.bullet.circle
             for contact in arbiter.contact_point_set.points:
-                impulse = contact.point_a - contact.point_b
-                shape.body.apply_impulse_at_world_point(impulse.scale_to_length(1) * 500, contact.point_b)
+                impulse = (contact.point_a - contact.point_b).scale_to_length(1) * Bullet.explosion_impulse
+                shape.body.apply_impulse_at_world_point(impulse, contact.point_b)
             self.bullets.remove(bullet_shape.bullet)
 
         space.remove(bullet_shape, bullet_shape.body)

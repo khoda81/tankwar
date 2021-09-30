@@ -9,9 +9,9 @@ class HumanAgent:
         self.forward_acceleration = 0
         self.angular_acceleration = 0
         self.turret = 0
-        self.shooting = False
+        self.shooting = -1
 
-    def act(self, observation, reward, done):
+    def act(self, *_):
         for event in self.env.events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_w:
@@ -23,7 +23,7 @@ class HumanAgent:
                 elif event.key == pygame.K_a:
                     self.angular_acceleration = 1
                 elif event.key == pygame.K_SPACE:
-                    self.shooting = not self.shooting
+                    self.shooting = -self.shooting
                 elif event.key == pygame.K_q:
                     self.turret = 1
                 elif event.key == pygame.K_e:
@@ -37,9 +37,9 @@ class HumanAgent:
                     self.turret = 0
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == pygame.BUTTON_LEFT:
-                    self.shooting = True
+                    self.shooting = 1
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == pygame.BUTTON_LEFT:
-                    self.shooting = False
+                    self.shooting = -1
 
-        return (self.forward_acceleration, self.angular_acceleration, self.turret), self.shooting
+        return self.forward_acceleration, self.angular_acceleration, self.turret, self.shooting

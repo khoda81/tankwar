@@ -55,6 +55,8 @@ class Tank:
 
 
 class Bullet:
+    color = 0, 0, 0
+    explosion_impulse = 300
     circle: pyglet.shapes.Circle
     collision_group = 1
     starting_impulse = 100
