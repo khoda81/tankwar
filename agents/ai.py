@@ -1,18 +1,6 @@
-import numpy as np
 import torch
-from PIL import Image
 from torch import nn
-from torch.optim import Adam, SGD
-from itertools import chain
-
-
-def show_pt_rgb_arr(tensor):
-    np_camera = np.zeros(tensor.shape[1:] + (3,), dtype=np.ubyte)
-    np_camera[..., 0] = tensor[0, ...] * 255
-    np_camera[..., 1] = tensor[1, ...] * 255
-    np_camera[..., 2] = tensor[2, ...] * 255
-    p = Image.fromarray(np_camera)
-    p.show()
+from torch.optim import Adam
 
 
 class LSTMEncoderModule(nn.Module):
@@ -67,19 +55,19 @@ class ValueModule(nn.Module):
 
 
 class Dataset:
-    def __init__(self, agents, image_size, max_size=1000):
+    def __init__(self, agents, image_size, max_size=1000, device=None):
         self.end = 0
 
-        self.images = torch.zeros(max_size + 1, agents, 3, *image_size)
-        self.observations = torch.zeros(max_size + 1, agents, 5)
-        self.rewards = torch.zeros(max_size + 1, agents, 1)
-        self.actions = torch.zeros(max_size + 1, agents, 4)
+        self.images = torch.zeros(max_size + 1, agents, 3, *image_size, device=device)
+        self.observations = torch.zeros(max_size + 1, agents, 5, device=device)
+        self.rewards = torch.zeros(max_size + 1, agents, 1, device=device)
+        self.actions = torch.zeros(max_size + 1, agents, 4, device=device)
 
     def add(self, observations, images, actions, rewards):
         self.images[self.end] = images
-        self.rewards[self.end] = torch.tensor(rewards, dtype=torch.float).unsqueeze(1)
-        self.observations[self.end] = torch.tensor(observations, dtype=torch.float)
-        self.actions[self.end] = torch.tensor(actions, dtype=torch.float)
+        self.rewards[self.end] = torch.tensor(rewards, dtype=torch.float, device=self.images.device).unsqueeze(1)
+        self.observations[self.end] = torch.tensor(observations, dtype=torch.float, device=self.images.device)
+        self.actions[self.end] = torch.tensor(actions, dtype=torch.float, device=self.images.device)
 
         self.end += 1
 

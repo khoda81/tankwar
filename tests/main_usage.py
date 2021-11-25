@@ -1,91 +1,98 @@
-from tqdm import tqdm
-
-from agents.ai import AI
-from tankwar.agents import HumanAgent, RandomAgent
-from tankwar.envs import TankWarEnv
-
 import numpy as np
-import pygame
+import pyglet.window
 import torch
 from PIL import Image
 from torch.nn.functional import interpolate
+from tqdm import tqdm
 
-MAX_EPISODE_STEPS = 5000
+from tankwar.agents import HumanAgent, RandomAgent
+from tankwar.envs import TankWarEnv
 
-RANDOM_AGENTS = 2
-HUMAN_AGENT = True
+MAX_EPISODE_STEPS = 50000
+
+RANDOM_AGENTS = 3
+HUMAN_AGENT = False
 SPACE_SIZE = 200, 200
-CAMERA_SIZE = 200, 200
-CAMERA_SCALE = 2
-WINDOW_HEIGHT = 600
+CAMERA_SIZE = 100, 100
+CAMERA_SCALE = 1
+WINDOW_HEIGHT = 300
 
-cw, ch = CAMERA_SIZE
-iw, ih = cw // CAMERA_SCALE, ch // CAMERA_SCALE
-pad_x = cw // (2 * CAMERA_SCALE)
-pad_y = ch // (2 * CAMERA_SCALE)
-w, h = SPACE_SIZE
-fw, fh = w // CAMERA_SCALE, h // CAMERA_SCALE
+render_to_window = HUMAN_AGENT
 
-window_render = HUMAN_AGENT
-print_value = HUMAN_AGENT
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def show_pt_rgb_arr(tensor):
-    np_camera = np.zeros(tensor.shape[1:] + (3,), dtype=np.ubyte)
-    np_camera[..., 0] = tensor[0, ...] * 255
-    np_camera[..., 1] = tensor[1, ...] * 255
-    np_camera[..., 2] = tensor[2, ...] * 255
-    p = Image.fromarray(np_camera)
-    p.show()
+    tensor = tensor.permute(2, 1, 0) * 255
+    np_image = tensor.cpu().numpy().astype(np.uint8)
+    Image.fromarray(np_image).show()
 
 
-def render(env, padded_frame):
-    if window_render:
-        env.render("human")
+def get_agent_frames(env, render_device):
+    frame = torch.tensor(env.render("rgb_array"), dtype=torch.float32, device=render_device)
+    frame_torch = (frame / 255.0).permute(2, 0, 1)
 
-    frame = env.render("rgb_array")
-    frame_torch = (torch.from_numpy(frame) / 255).permute(2, 0, 1)
-    padded_frame[:, pad_y:pad_y + fh, pad_x:pad_x + fw] = (
-        frame_torch if fh == WINDOW_HEIGHT
-        else interpolate(frame_torch.unsqueeze(0), (fh, fw), mode='bilinear', align_corners=False)[0]
-    )
-    image_batch = torch.zeros(env.n, 3, ih, iw)
+    # downscale frame using bilinear interpolation
+    window_width, window_height = env.window.get_size()
+    frame_width, frame_height = window_width // CAMERA_SCALE, window_height // CAMERA_SCALE
+    if CAMERA_SCALE != 1:
+        frame_torch = interpolate(
+            frame_torch.unsqueeze(0),
+            (frame_height, frame_width),
+            mode='bilinear',
+            align_corners=False
+        )[0]
+
+    # pad frame from all sides with black pixels to avoid out of bounds errors
+    camera_width, camera_height = CAMERA_SIZE
+    padded_frame = torch.zeros(3, frame_height + camera_height, frame_width + camera_width, device=render_device)
+    pad_x, pad_y = camera_width // 2, camera_height // 2
+    padded_frame[..., pad_y:pad_y + frame_height, pad_x:pad_x + frame_width] = frame_torch
+
+    # cut camera for each tank
+    frame_scale = env.window_scale / CAMERA_SCALE
+    image_batch = torch.zeros(env.n, 3, camera_height, camera_width, device=render_device)
     for i, tank in enumerate(env.tanks):
-        x, y = tank.body.position.int_tuple
-        wx, wy = x // CAMERA_SCALE, y // CAMERA_SCALE
-        image_batch[i] = padded_frame[:, wy:wy + ih, wx:wx + iw]
+        x, y = (tank.body.position * frame_scale).int_tuple
+        frame = padded_frame[:, y:y + camera_height, x:x + camera_width]
+        image_batch[i] = frame
+
     return image_batch
 
 
-def process_events(env):
-    global window_render, print_value
+def key_handler(env):
+    def on_key_press(symbol, modifiers):
+        global render_to_window
 
-    for event in env.events:
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
-            window_render = not window_render
+        if symbol == pyglet.window.key.G:
+            # if g is pressed window render is toggled
+            # disabling screen will make rendering faster
+            # because copying frame to window takes time
+            render_to_window = not render_to_window
 
-            if not window_render:
+            if not render_to_window:
                 env.blur_window()
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-            print_value = not print_value
+
+    return on_key_press
 
 
 def main():
     env = TankWarEnv(RANDOM_AGENTS + HUMAN_AGENT, shape=SPACE_SIZE)
-
-    agents = (
-            [HumanAgent(env)] * HUMAN_AGENT +
-            [RandomAgent(env) for _ in range(RANDOM_AGENTS)])
-
     env.init_window(WINDOW_HEIGHT)
-    env.reset()
+
+    env.window.push_handlers(key_handler(env))
+    agents = [HumanAgent(env)] * HUMAN_AGENT
+    agents += [RandomAgent(env) for _ in range(RANDOM_AGENTS)]
+
+    observations = env.reset()
+    rewards = [0 for _ in range(env.n)]
 
     for _ in tqdm(range(MAX_EPISODE_STEPS), unit="step"):
-        if window_render:
+        env.window_events()
+        if render_to_window:
             env.render("human")
 
-        process_events(env)
-
+        frames = get_agent_frames(env, device)
         actions = [agent.act() for i, agent in enumerate(agents)]
         observations, rewards, done, info = env.step(actions)
 

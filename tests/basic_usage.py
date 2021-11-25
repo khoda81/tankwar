@@ -1,55 +1,54 @@
-import pygame
+import pyglet
 
 from tankwar.agents import HumanAgent, RandomAgent
 from tankwar.envs import TankWarEnv
 
+RANDOM_AGENTS = 2
+render_to_window = True
+
+
+def key_handler(env):
+    def on_key_press(symbol, modifiers):
+        global render_to_window
+
+        if symbol == pyglet.window.key.G:
+            # if g is pressed window render is toggled
+            # disabling screen will make rendering faster
+            # because copying frame to window takes time
+            render_to_window = not render_to_window
+
+            if not render_to_window:
+                env.blur_window()
+
+    return on_key_press
+
 
 def main():
-    random_agents = 2
-
     # create environment
-    env = TankWarEnv(random_agents + 1, shape=(200, 200))
+    env = TankWarEnv(RANDOM_AGENTS + 1, shape=(200, 200))
+
+    # initialize a window with the height of 600 with vsync enabled
+    # width is automatically calculated based on env.shape
+    env.init_window(600, True)
+
+    # set key handler
+    env.window.push_handlers(key_handler(env))
+    done = False
 
     # create agents
-    agents = [HumanAgent(env)] + [RandomAgent(env) for _ in range(random_agents)]
-
-    # initialize a window with the height of 600
-    # and limit frame rate to 60
-    # width is calculated based on env.shape
-    env.init_window(600, True)
-    done = False
+    agents = [HumanAgent(env)]
+    agents += [RandomAgent(env) for _ in range(RANDOM_AGENTS)]
 
     # reset environment
     env.reset()
-    display_to_human = True
 
-    while True:
-        if display_to_human:
+    while not done:
+        env.window_events(render_to_window)  # process events and render if needed
+        if render_to_window:
             env.render("human")  # render to screen
-        else:
-            # if render is not called window events are not processed
-            # so, manually processing window events
-            env.process_window_events()
 
-        actions = [
-            agent.act((None, None), 0, done)
-            for agent in agents
-        ]
-
-        observations, rewards, done, info = env.step(actions, print_fps=True)
-
-        # if g is pressed screen is toggled
-        # disabling screen will make rendering faster
-        # because copying frame to window takes time
-        for event in env.events:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
-                display_to_human = not display_to_human
-
-                if not display_to_human:
-                    env.blur_window()
-
-        if done:
-            break
+        actions = [agent.act() for agent in agents]
+        observations, rewards, done, info = env.step(actions, print_tps=True)
 
 
 if __name__ == "__main__":

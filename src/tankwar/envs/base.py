@@ -3,14 +3,10 @@ from typing import List
 
 import gym
 import numpy as np
-import pygame
 import pyglet
 import pymunk
-import pymunk.pygame_util
 import pymunk.pyglet_util
-
 from PIL import Image, ImageFilter
-from pygame.locals import *
 from pyglet.gl import *
 from pyglet.graphics import Batch
 from pyglet.shapes import Rectangle, Circle
@@ -45,9 +41,7 @@ class TankWarEnv(gym.Env):
         self._step_counter = 0
         self._last_fps_print = int(time.time())
 
-        self.clock = pygame.time.Clock()
-
-    def step(self, actions, print_fps=False):
+    def step(self, actions, print_tps=False):
         self._step_counter += 1
 
         rewards = [0] * self.n
@@ -85,7 +79,7 @@ class TankWarEnv(gym.Env):
         t = time.time()
 
         if int(t) > self._last_fps_print:
-            if print_fps:
+            if print_tps:
                 print(f"tps={self._step_counter} fps={self._frame_counter}")
             self._frame_counter = 0
             self._step_counter = 0
@@ -93,7 +87,7 @@ class TankWarEnv(gym.Env):
 
         self.frame_done = False
 
-        return observations, rewards, self.done, {"events": self.events}
+        return observations, rewards, self.done, {}
 
     def create_bullet(self, owner):
         bullet = Bullet(self.space, owner)
@@ -102,51 +96,51 @@ class TankWarEnv(gym.Env):
                                bullet.shape.radius * self.window_scale, color=Bullet.color,
                                batch=self.shape_batch)
 
-    def init_window(self, height=100, limited=False):
+    def init_window(self, height=100, vsync=False):
         self.window_h = height
         w, h = self.shape
         self.window_scale = self.window_h / h
         self.window_w = self.window_h * w // h
         self.window_size = (self.window_w, self.window_h)
 
-        self.window = pygame.display.set_mode(self.window_size, HWSURFACE | OPENGL | DOUBLEBUF)
+        # create window with vsync=False
+        self.window = pyglet.window.Window(self.window_w, self.window_h, vsync=vsync)
 
-        self.limited = limited
-        self.black_window = True
-        self.events = []
+        def on_key_press(symbol, modifiers):
+            if symbol == pyglet.window.key.ESCAPE:
+                self.done = True
+            elif symbol == pyglet.window.key.F:
+                # toggle vsync
+                self.window.set_vsync(not self.window.vsync)
+
+        def on_close():
+            self.done = True
+
+        self.window.push_handlers(on_draw=self.on_draw, on_key_press=on_key_press, on_close=on_close)
+
+    def window_events(self, render=True):
+        pyglet.clock.tick()
+        self.window.switch_to()
+        self.window.dispatch_events()
+        if render:
+            self.window.dispatch_event('on_draw')
 
     def render(self, mode="human"):
-        if not self.frame_done:
-            self.draw()
-            self.process_window_events()
-
         # display frame
         if mode == "human":
             # tick clock and update fps in title
-            self.clock.tick(self.frame_rate if self.limited else 0)
-            fps = self.clock.get_fps()
+            fps = pyglet.clock.get_fps()
+            self.window.set_caption(f"{fps:.1f} fps")
+            self.window.flip()
+        elif mode == "rgb_array":
+            return np.array(self.buffer).reshape((self.window_h, self.window_w, 3))
 
-            pygame.display.set_caption(f"{fps:.1f} fps")
-
-            pygame.display.flip()
-            self.black_window = False
-        else:
-            if self.black_window:
-                self.blur_window()
-
-            if mode == "rgb_array":
-                return np.array(self.buffer).reshape((self.window_h, self.window_w, 3))
-
-    def draw(self):
+    def on_draw(self):
         self._frame_counter += 1
 
         # clear screen
         glClearColor(*self.background_color, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        # position camera to look at the world origin.
-        glLoadIdentity()
-        glOrtho(0, self.window_w, 0, self.window_h, -1, 1)
 
         # draw tanks
         for tank in self.tanks:
@@ -173,26 +167,11 @@ class TankWarEnv(gym.Env):
         blurred_pyglet = pyglet.image.ImageData(*self.window_size, "RGB", blurred.tobytes())
         blurred_pyglet.blit(0, 0)
 
-        pygame.display.set_caption(f"display disabled")
-
-        pygame.display.flip()
-        self.black_window = False
-
-    def process_window_events(self):
-        self.events = list(pygame.event.get())
-
-        for event in self.events:
-            if event.type == pygame.QUIT:
-                self.done = True
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.done = True
-                elif event.key == pygame.K_f:
-                    self.limited = not self.limited
+        self.window.set_caption(f"display disabled")
+        self.window.flip()
 
     def close_window(self):
-        pygame.quit()
-        self.events = []
+        self.window.close()
 
     def create_tank(self, x, y, i):
         tank = Tank(self.space, x, y, 10, 14)
